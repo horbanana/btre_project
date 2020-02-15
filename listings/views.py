@@ -1,7 +1,10 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.core.paginator import EmptyPage, PageNotAnInteger, Paginator
+from listings.choices import price_choices, bedroom_choices, state_choices #to make html shorter I'll loop trhu dictionary 
 
 from . models import Listing 
+
+
 
 def index(request):
     listings = Listing.objects.order_by('-list_date').filter(is_published = True)
@@ -17,7 +20,51 @@ def index(request):
     return render(request, 'listings/listings.html', context)
     
 def listing(request, listing_id):
-    return render(request, 'listings/listing.html')
+    listing = get_object_or_404(Listing, pk=listing_id)
+
+    context = {
+        'listing' : listing
+    }
+    return render(request, 'listings/listing.html', context)
 
 def search(request):
-    return render(request, 'listings/search.html')
+    queryset_list = Listing.objects.order_by('-list_date')
+    #keywords
+    if 'keywords' in request.GET:
+        keywords = request.GET['keywords']
+        if keywords:
+            queryset_list = queryset_list.filter(description__icontains=keywords) #description contains keyword
+
+    #City
+    if 'city' in request.GET:
+        city = request.GET['city']
+        if city:
+            queryset_list = queryset_list.filter(city__iexact=city) #exact match not case sensitive
+    
+    #State
+    if 'state' in request.GET:
+        state = request.GET['state']
+        if state:
+            queryset_list = queryset_list.filter(state__iexact=state) #exact match not case sensitive
+
+    #Bedrooms
+    if 'bedrooms' in request.GET:
+        bedrooms = request.GET['bedrooms']
+        if bedrooms:
+            queryset_list = queryset_list.filter(bedrooms__lte=bedrooms) #less than equal to
+    
+
+    #Price
+    if 'price' in request.GET:
+        price = request.GET['price']
+        if price:
+            queryset_list = queryset_list.filter(price__lte=price) #less than equal to (up to exact price)
+
+    context = {
+        'state_choices' : state_choices,
+        'bedroom_choices' : bedroom_choices,
+        'price_choices' : price_choices,
+        'listings' : queryset_list,
+        'values': request.GET #pass all requests to context, so after user search for some keyword,this keword stays in the search form
+    }
+    return render(request, 'listings/search.html', context)
